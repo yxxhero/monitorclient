@@ -103,6 +103,13 @@ class system_info(object):
             if ps in args[0]: 
                if ps not in ps_list:
                    ps_list.append(ps)
+        for firmitem in args[1]:
+            cmd="ps auxf | grep %s| grep -v grep|wc -l" %(firmitem)
+            status,output=commands.getstatusoutput(cmd)
+            if int(status)==0 and int(output) >= 1:
+                ps_list.append(firmitem)
+            
+            
         return ps_list
 		
     def get_hostname(self):
@@ -163,29 +170,29 @@ class system_info(object):
         return content
 
 
-def client_worker(client,url,psinfo):
-    client_data=client.get_system_info(pslist)
+def client_worker(client,url,pslist):
+    client_data=client.get_system_info(pslist,firm_list)
     host_data={'host_info':client_data}
     logging.info(client_data)
     try:
         result=client.post_system_info(url,host_data)
     except Exception,e:
         logging.warning(str(e))
-def perform(inc,s,client,url,psinfo):
-    s.enter(inc,0,perform,(inc,s,client,url,psinfo))
-    client_worker(client,url,psinfo)
-def rolld(inc,s,client,url,psinfo):
-    s.enter(0,0,perform,(inc,s,client,url,psinfo))
+def perform(inc,s,client,url,pslist):
+    s.enter(inc,0,perform,(inc,s,client,url,pslist))
+    client_worker(client,url,pslist)
+def rolld(inc,s,client,url,pslist):
+    s.enter(0,0,perform,(inc,s,client,url,pslist))
     s.run()
 class pantalaimon(Daemon):
-    def restart(self,inc,s,client,url,psinfo):
+    def restart(self,inc,s,client,url,pslist):
         self.stop()
-	self.start(client,url,psinfo)
-    def run(self,inc,s,client,url,psinfo):
+	self.start(client,url,pslist)
+    def run(self,inc,s,client,url,pslist):
         atexit.register(self.delpid)  # Make sure pid file is removed if we quit
         pid = str(os.getpid())
         open(self.pidfile, 'w+').write("%s\n" % pid)
-	rolld(inc,s,client,url,psinfo)
+	rolld(inc,s,client,url,pslist)
 def signal_handler(signum,frame):
     print "agent is going down"
     config=ConfigObj(config_file,encoding='UTF8')
@@ -245,12 +252,13 @@ if __name__=='__main__':
     url='http://'+host+':'+port+uri
     pidfile=config['client']['pidfile']
     pslist=config['client']['process_list'].split('^')
+    firm_list=config['client']['firm_list'].split('^')
     client_info=system_info(description)
     schedule = sched.scheduler ( time.time, time.sleep ) 
     logging.basicConfig(level=logging.DEBUG,
                         format='%(asctime)s %(levelname)s %(message)s',
                         datefmt='%a, %d %b %Y %H:%M:%S',
-                        filename='myapp.log',
+                        filename='./log/myapp.log',
                         filemode='a')
     pineMarten = pantalaimon(pidfile)
     signal.signal(signal.SIGINT,signal_handler)
