@@ -45,11 +45,11 @@ class system_info(object):
 
         return sysinfo
     def get_portinfo(self):
-        checkport=commands.getstatusoutput('netstat -tnlp --inet')
+        checkport=commands.getstatusoutput('netstat -tnlp')
         if int(checkport[0]) == 0:
             portinfolist=[]
             for line in checkport[1].split("\n")[2:]:
-                portinfolist.append((line.split()[6].split("/")[1],line.split()[3].split(":")[1]))
+                portinfolist.append((line.split()[6].split("/")[1],line.split()[3].split(":")[-1]))
             return portinfolist
 
     def get_disk_info(self):
