@@ -162,7 +162,6 @@ class system_info(object):
         
         return self.systeminfo
     def post_system_info(self,url,data):
-        print data
         format_data=urllib.urlencode(data)
         req=urllib2.Request(url,format_data)
         response=urllib2.urlopen(req)
@@ -173,11 +172,15 @@ class system_info(object):
 def client_worker(client,url,pslist):
     client_data=client.get_system_info(pslist,firm_list)
     host_data={'host_info':client_data}
-    logging.info(client_data)
     try:
         result=client.post_system_info(url,host_data)
     except Exception,e:
         logging.warning(str(e))
+    else:
+        if int(eval(result)["error"])==0:
+            logging.info("上报成功")
+        else:
+            logging.error("上报失败")
 def perform(inc,s,client,url,pslist):
     s.enter(inc,0,perform,(inc,s,client,url,pslist))
     client_worker(client,url,pslist)
@@ -187,12 +190,12 @@ def rolld(inc,s,client,url,pslist):
 class pantalaimon(Daemon):
     def restart(self,inc,s,client,url,pslist):
         self.stop()
-	self.start(client,url,pslist)
+        self.start(inc,s,client,url,pslist)
     def run(self,inc,s,client,url,pslist):
         atexit.register(self.delpid)  # Make sure pid file is removed if we quit
         pid = str(os.getpid())
         open(self.pidfile, 'w+').write("%s\n" % pid)
-	rolld(inc,s,client,url,pslist)
+        rolld(inc,s,client,url,pslist)
 def signal_handler(signum,frame):
     print "agent is going down"
     config=ConfigObj(config_file,encoding='UTF8')
@@ -248,6 +251,7 @@ if __name__=='__main__':
     description=config['client']['description']
     host=config['server']['server_host']
     port=config['server']['server_port']
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     uri=config['server']['uri']
     url='http://'+host+':'+port+uri
     pidfile=config['client']['pidfile']
@@ -258,7 +262,7 @@ if __name__=='__main__':
     logging.basicConfig(level=logging.DEBUG,
                         format='%(asctime)s %(levelname)s %(message)s',
                         datefmt='%a, %d %b %Y %H:%M:%S',
-                        filename='./log/myapp.log',
+                        filename=BASE_DIR+'/log/myapp.log',
                         filemode='a')
     pineMarten = pantalaimon(pidfile)
     signal.signal(signal.SIGINT,signal_handler)
