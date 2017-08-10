@@ -13,9 +13,11 @@ import time
 import argparse
 import signal
 import logging
+from setproctitle import setproctitle,getproctitle
 from configobj import ConfigObj
 from daemon import Daemon
 import sched 
+setproctitle("monitorclient")
 if 'threading' in sys.modules:
     del sys.modules['threading']
 class system_info(object):
