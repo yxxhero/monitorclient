@@ -16,7 +16,8 @@ import logging
 from setproctitle import setproctitle,getproctitle
 from configobj import ConfigObj
 from daemon import Daemon
-import sched 
+#from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.blocking import BlockingScheduler
 setproctitle("monitorclient")
 if 'threading' in sys.modules:
     del sys.modules['threading']
@@ -151,6 +152,9 @@ class system_info(object):
 
 
     def get_system_info(self,*args,**kwargs):
+        keyprocess=[]
+        for pl in args:
+            keyprocess.extend(pl)
         self.systeminfo['hostname'] = self.get_hostname()
         self.systeminfo['ip_dict'] = self.get_ip_dict()
         self.systeminfo['cpu_info'] = self.get_cpu_info()
@@ -161,6 +165,7 @@ class system_info(object):
         self.systeminfo['user_info'] = self.get_user_info()
         self.systeminfo['port_info'] = self.get_portinfo()
         self.systeminfo['description'] = self.description
+        self.systeminfo['keyprocess']=keyprocess
         
         return self.systeminfo
     def post_system_info(self,url,data):
@@ -183,21 +188,16 @@ def client_worker(client,url,pslist):
             logging.info("上报成功")
         else:
             logging.error("上报失败")
-def perform(inc,s,client,url,pslist):
-    s.enter(inc,0,perform,(inc,s,client,url,pslist))
-    client_worker(client,url,pslist)
-def rolld(inc,s,client,url,pslist):
-    s.enter(0,0,perform,(inc,s,client,url,pslist))
-    s.run()
 class pantalaimon(Daemon):
-    def restart(self,inc,s,client,url,pslist):
+    def restart(self,interval,client,url,pslist):
         self.stop()
-        self.start(inc,s,client,url,pslist)
-    def run(self,inc,s,client,url,pslist):
+        self.start(interval,client,url,pslist)
+    def run(self,interval,client,url,pslist):
         atexit.register(self.delpid)  # Make sure pid file is removed if we quit
         pid = str(os.getpid())
         open(self.pidfile, 'w+').write("%s\n" % pid)
-        rolld(inc,s,client,url,pslist)
+        scheduler.add_job(func=client_worker,args=(client,url,pslist), trigger='interval', seconds=interval)
+        scheduler.start()
 def signal_handler(signum,frame):
     print "agent is going down"
     config=ConfigObj(config_file,encoding='UTF8')
@@ -260,8 +260,9 @@ if __name__=='__main__':
     pslist=config['client']['process_list'].split('^')
     firm_list=config['client']['firm_list'].split('^')
     client_info=system_info(description)
-    schedule = sched.scheduler ( time.time, time.sleep ) 
-    logging.basicConfig(level=logging.DEBUG,
+#    scheduler = BackgroundScheduler()
+    scheduler = BlockingScheduler()
+    logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s %(levelname)s %(message)s',
                         datefmt='%a, %d %b %Y %H:%M:%S',
                         filename=BASE_DIR+'/log/myapp.log',
@@ -269,10 +270,10 @@ if __name__=='__main__':
     pineMarten = pantalaimon(pidfile)
     signal.signal(signal.SIGINT,signal_handler)
     if action == "start":
-        pineMarten.start(interval,schedule,client_info,url,pslist)
+        pineMarten.start(interval,client_info,url,pslist)
     elif action == "stop":
         pineMarten.stop()
     elif action=="restart":
-        pineMarten.restart(interval,schedule,client_info,url,pslist)
+        pineMarten.restart(interval,client_info,url,pslist)
     elif action=="run":
-        pineMarten.run(interval,schedule,client_info,url,pslist)
+        pineMarten.run(interval,client_info,url,pslist)
