@@ -172,15 +172,15 @@ class system_info(object):
         format_data=urllib.urlencode(data)
         req=urllib2.Request(url,format_data)
         response=urllib2.urlopen(req,timeout=3)
-        content=response.read()
-        return content
+        return response 
 
 
 def client_worker(client,url,pslist):
     client_data=client.get_system_info(pslist,firm_list)
     host_data={'host_info':client_data}
     try:
-        result=client.post_system_info(url,host_data)
+        response=client.post_system_info(url,host_data)
+        result=response.read()
     except Exception,e:
         logging.warning(str(e))
     else:
@@ -188,6 +188,9 @@ def client_worker(client,url,pslist):
             logging.info("上报成功")
         else:
             logging.error("上报失败")
+    finally:
+        if response:
+            response.close()
 class pantalaimon(Daemon):
     def restart(self,interval,client,url,pslist):
         self.stop()
