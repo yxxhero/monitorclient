@@ -176,9 +176,10 @@ class system_info(object):
 
 
 def client_worker(client,url,pslist):
-    client_data=client.get_system_info(pslist,firm_list)
-    host_data={'host_info':client_data}
+    response=None
     try:
+        client_data=client.get_system_info(pslist,firm_list)
+        host_data={'host_info':client_data}
         response=client.post_system_info(url,host_data)
         result=response.read()
     except Exception,e:
@@ -264,7 +265,7 @@ if __name__=='__main__':
     firm_list=config['client']['firm_list'].split('^')
     client_info=system_info(description)
 #    scheduler = BackgroundScheduler()
-    scheduler = BlockingScheduler()
+    scheduler = BlockingScheduler({'apscheduler.timezone': 'Asia/Shanghai'})
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s %(levelname)s %(message)s',
                         datefmt='%a, %d %b %Y %H:%M:%S',
