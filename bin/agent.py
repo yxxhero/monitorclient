@@ -171,7 +171,7 @@ class system_info(object):
     def post_system_info(self,url,data):
         format_data=urllib.urlencode(data)
         req=urllib2.Request(url,format_data)
-        response=urllib2.urlopen(req)
+        response=urllib2.urlopen(req,timeout=3)
         content=response.read()
         return content
 
