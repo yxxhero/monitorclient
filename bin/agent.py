@@ -48,11 +48,11 @@ class system_info(object):
 
         return sysinfo
     def get_portinfo(self):
-        checkport=commands.getstatusoutput('netstat -tnlp')
+        checkport=commands.getstatusoutput('ss -tnlp')
         if int(checkport[0]) == 0:
             portinfolist=[]
-            for line in checkport[1].split("\n")[2:]:
-                portinfolist.append((line.split()[6].split("/")[1],line.split()[3].split(":")[-1]))
+            for line in checkport[1].split("\n")[1:]:
+                portinfolist.append((line.split()[5].split(",")[0].split(":")[1].split('"')[1],line.split()[3].split(":")[-1]))
             return portinfolist
 
     def get_disk_info(self):
@@ -180,6 +180,7 @@ def client_worker(client,url,pslist):
     try:
         client_data=client.get_system_info(pslist,firm_list)
         host_data={'host_info':client_data}
+        print host_data
         response=client.post_system_info(url,host_data)
         result=response.read()
     except Exception,e:
