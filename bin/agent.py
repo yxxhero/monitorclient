@@ -16,11 +16,13 @@ import logging
 from setproctitle import setproctitle,getproctitle
 from configobj import ConfigObj
 from daemon import Daemon
-#from apscheduler.schedulers.background import BackgroundScheduler
+import netifaces
+from netifaces import AF_INET
 from apscheduler.schedulers.blocking import BlockingScheduler
 setproctitle("monitorclient")
 if 'threading' in sys.modules:
     del sys.modules['threading']
+
 class system_info(object):
     def __init__(self,description):
         self.systeminfo = {}
@@ -120,19 +122,15 @@ class system_info(object):
         return self.hostname
 
     def get_ip_dict(self):
-        if platform.system() == 'Linux':
-            for line in os.popen("ip add | grep \"scope global\" ").readlines():
-                device = line.split()[-1]
-                ip = line.split()[1]
-                self.ip_dict[device] = ip
-        if platform.system() == 'Windows':
-            adapter_num = 0
-            for ip in socket.gethostbyname_ex(socket.gethostname())[2]:
-                adapter_num = adapter_num + 1
-                device = "adapter"+str(adapter_num)
-                self.ip_dict[device] = ip
+        gatewayiface=netifaces.gateways()['default'][netifaces.AF_INET][1]
+        for iface in netifaces.interfaces():
+            if AF_INET in netifaces.ifaddresses(iface).keys():
+                self.ip_dict[iface]=netifaces.ifaddresses(iface)[netifaces.AF_INET][0]['addr']
+                if iface == gatewayiface:
+                    self.ip_dict['gatewayiface']=iface
+                    self.ip_dict['gatewayifaceip']=netifaces.ifaddresses(iface)[netifaces.AF_INET][0]['addr']
         return self.ip_dict
-	
+        
     def get_cpu_info(self):
         self.cpu_info['logical_cores'] = psutil.cpu_count()
         self.cpu_info['physical_cores'] = psutil.cpu_count(logical = False)
