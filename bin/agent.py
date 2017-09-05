@@ -36,6 +36,7 @@ class system_info(object):
         self.disk_info =[] 
         self.user_info=[]
         self.description=description
+        self.connection_info={}
 	
     def get_sysinfo(self):
         uptime = int(time.time() - psutil.boot_time())
@@ -47,8 +48,11 @@ class system_info(object):
             'cpu_usage' : psutil.cpu_percent(),
             'root_usage':psutil.disk_usage('/').percent
         }
-
-        return sysinfo
+    def get_connectioninfo(self):
+        total_connect_info=[connect.status for connect in psutil.net_connections()]
+        self.connection_info['LISTEN']=total_connect_info.count('LISTEN')
+        self.connection_info['ESTABLISHED']=total_connect_info.count('ESTABLISHED')
+        return self.connection_info
     def get_portinfo(self):
         checkport=commands.getstatusoutput('ss -tnlp')
         if int(checkport[0]) == 0:
@@ -164,6 +168,7 @@ class system_info(object):
         self.systeminfo['port_info'] = self.get_portinfo()
         self.systeminfo['description'] = self.description
         self.systeminfo['keyprocess']=keyprocess
+        self.systeminfo['connect_info'] = self.get_connectioninfo()
         
         return self.systeminfo
     def post_system_info(self,url,data):
