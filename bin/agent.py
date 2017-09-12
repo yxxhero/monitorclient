@@ -33,6 +33,7 @@ class system_info(object):
         self.system_name = ''
         self.process_info = {}
         self.mem_info = {}
+        self.flow_info = {}
         self.disk_info =[] 
         self.user_info=[]
         self.description=description
@@ -104,6 +105,18 @@ class system_info(object):
         self.mem_info['shared'] = psutil.virtual_memory().shared/1024/1024
         return self.mem_info
 
+    def get_flow_info(self):
+        btotal_s={"b_sent":psutil.net_io_counters().bytes_sent,"b_recv":psutil.net_io_counters().bytes_recv}
+        bpernic_s={key:{"b_sent":psutil.net_io_counters(pernic=True)[key].bytes_sent,"b_recv":psutil.net_io_counters(pernic=True)[key].bytes_recv} for key in psutil.net_io_counters(pernic=True).keys()}
+        time.sleep(1)
+        btotal_e={"b_sent":psutil.net_io_counters().bytes_sent,"b_recv":psutil.net_io_counters().bytes_recv}
+        bpernic_e={key:{"b_sent":psutil.net_io_counters(pernic=True)[key].bytes_sent,"b_recv":psutil.net_io_counters(pernic=True)[key].bytes_recv} for key in psutil.net_io_counters(pernic=True).keys()}
+        print btotal_e
+        print btotal_s
+        self.flow_info["flow_statis"]={"sent_rate":float(btotal_e["b_sent"])-float(btotal_s["b_sent"]),"recv_rate":float(btotal_e["b_recv"])-float(btotal_s["b_recv"])}
+        self.flow_info["pernic_statis"]={key:{"sent_rate":float(bpernic_e[key]["b_sent"])-float(bpernic_s[key]["b_sent"]),"recv_rate":float(bpernic_e[key]["b_recv"])-float(bpernic_s[key]["b_recv"])} for key in psutil.net_io_counters(pernic=True).keys()}
+        return self.flow_info
+
     def get_process_info(self,*args,**kwargs):
         ps_list=[]
         list=psutil.process_iter()
@@ -169,6 +182,7 @@ class system_info(object):
         self.systeminfo['description'] = self.description
         self.systeminfo['keyprocess']=keyprocess
         self.systeminfo['connect_info'] = self.get_connectioninfo()
+        self.systeminfo['flow_info'] = self.get_flow_info()
         
         return self.systeminfo
     def post_system_info(self,url,data):
