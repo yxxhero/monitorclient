@@ -11,6 +11,7 @@ import urllib
 import urllib2
 import time
 import argparse
+from datetime import date
 import signal
 import logging
 from setproctitle import setproctitle,getproctitle
@@ -38,9 +39,16 @@ class system_info(object):
         self.user_info=[]
         self.description=description
         self.connection_info={}
-	
+    def relative_timestamp(self):
+        TODAY=date.today()
+        ONEDAY_SECONDS=86400
+        GREENWICHTIME=date(1970,1,1)
+        interval_time=TODAY-GREENWICHTIME
+        interval_days=interval_time.days
+        return int(time.time())-interval_days*ONEDAY_SECONDS
+
     def get_sysinfo(self):
-        uptime = int(time.time() - psutil.boot_time())
+        uptime = int(float(time.time() - psutil.boot_time()))
         sysinfo = {
             'uptime': uptime,
             'hostname': socket.gethostname(),
@@ -111,8 +119,6 @@ class system_info(object):
         time.sleep(1)
         btotal_e={"b_sent":psutil.net_io_counters().bytes_sent,"b_recv":psutil.net_io_counters().bytes_recv}
         bpernic_e={key:{"b_sent":psutil.net_io_counters(pernic=True)[key].bytes_sent,"b_recv":psutil.net_io_counters(pernic=True)[key].bytes_recv} for key in psutil.net_io_counters(pernic=True).keys()}
-        print btotal_e
-        print btotal_s
         self.flow_info["flow_statis"]={"sent_rate":float(btotal_e["b_sent"])-float(btotal_s["b_sent"]),"recv_rate":float(btotal_e["b_recv"])-float(btotal_s["b_recv"])}
         self.flow_info["pernic_statis"]={key:{"sent_rate":float(bpernic_e[key]["b_sent"])-float(bpernic_s[key]["b_sent"]),"recv_rate":float(bpernic_e[key]["b_recv"])-float(bpernic_s[key]["b_recv"])} for key in psutil.net_io_counters(pernic=True).keys()}
         return self.flow_info
@@ -125,13 +131,12 @@ class system_info(object):
             if ps in args[0]: 
                if ps not in ps_list:
                    ps_list.append(ps)
-        for firmitem in args[1]:
-            cmd="ps auxf | grep %s| grep -v grep|wc -l" %(firmitem)
-            status,output=commands.getstatusoutput(cmd)
-            if int(status)==0 and int(output) >= 1:
-                ps_list.append(firmitem)
-            
-            
+        if len(args[1][0])!=0:
+            for firmitem in args[1]:
+                cmd="ps auxf | grep %s| grep -v grep|wc -l" %(firmitem)
+                status,output=commands.getstatusoutput(cmd)
+                if int(status)==0 and int(output) >= 1:
+                    ps_list.append(firmitem)
         return ps_list
 		
     def get_hostname(self):
@@ -180,9 +185,10 @@ class system_info(object):
         self.systeminfo['user_info'] = self.get_user_info()
         self.systeminfo['port_info'] = self.get_portinfo()
         self.systeminfo['description'] = self.description
-        self.systeminfo['keyprocess']=keyprocess
+        self.systeminfo['keyprocess']=[item for item in keyprocess if len(item) != 0]
         self.systeminfo['connect_info'] = self.get_connectioninfo()
         self.systeminfo['flow_info'] = self.get_flow_info()
+        logging.error(self.systeminfo['keyprocess'])
         
         return self.systeminfo
     def post_system_info(self,url,data):
@@ -282,7 +288,6 @@ if __name__=='__main__':
     pslist=config['client']['process_list'].split('^')
     firm_list=config['client']['firm_list'].split('^')
     client_info=system_info(description)
-#    scheduler = BackgroundScheduler()
     scheduler = BlockingScheduler({'apscheduler.timezone': 'Asia/Shanghai'})
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s %(levelname)s %(message)s',
